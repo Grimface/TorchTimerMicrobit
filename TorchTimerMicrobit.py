@@ -17,7 +17,7 @@ import gc
 # Some constants
 NUM_LEDS_ON_HALO = 60
 LED_DIM_GREEN  = (0, 100, 0)
-LED_DIM_ORANGE = (20, 2, 0)
+LED_DIM_ORANGE = (20, 1, 0)
 LED_BLACK      = (0, 0, 0)
 ICON_PLAY   = Image("09000:09900:09990:09900:09000")
 ICON_PAUSED = Image("99099:99099:99099:99099:99099")
@@ -40,7 +40,7 @@ class KitronikRTC:
     currentSeconds = 0
     currentMinutes = 0
     currentHours = 0
-    
+
     def __init__(self):
         i2c.init(freq=100000, sda=pin20, scl=pin19)
         writeBuf = bytearray(2)
@@ -65,7 +65,7 @@ class KitronikRTC:
         writeBuf[1] = self.START_RTC | readCurrentSeconds
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
 
-    # reads the RTC chip. Result comes back as BCD, so this function 
+    # reads the RTC chip. Result comes back as BCD, so this function
     # converts them as they come in and places them into the class members
     def readValue(self):
         writeBuf = bytearray(1)
@@ -135,10 +135,10 @@ for i in range(0, 60):
 while True:
     halo_leds[clock.seconds()] = LED_BLACK
     halo_leds.show()
-    
+
     if button_a.was_pressed():
         paused = not paused
-        
+
     if paused:
         display.show(ICON_PAUSED)
     else:
