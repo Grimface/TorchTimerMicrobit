@@ -1,5 +1,9 @@
 # Sets all the Halo LEDs to orange, and then darkens one each second,
-# going clockwise from the top, and displays a boat image in the center
+# going clockwise from the top, and displays an image in the center.
+# Note: The time calculations all rely on setting the real-time clock
+# back to zero every time we reset. Because we're expecting the minutes
+# and seconds to start at zero every time.
+
 
 from microbit import button_a
 # from microbit import button_b
@@ -16,11 +20,12 @@ import gc
 
 # Some constants
 NUM_LEDS_ON_HALO = 60
-LED_DIM_GREEN  = (0, 100, 0)
+LED_DIM_GREEN = (0, 100, 0)
 LED_DIM_ORANGE = (20, 1, 0)
-LED_BLACK      = (0, 0, 0)
-ICON_PLAY   = Image("09000:09900:09990:09900:09000")
+LED_BLACK = (0, 0, 0)
+ICON_PLAY = Image("09000:09900:09990:09900:09000")
 ICON_PAUSED = Image("99099:99099:99099:99099:99099")
+
 
 class KitronikRTC:
     CHIP_ADDRESS = 0x6F
@@ -118,13 +123,20 @@ class KitronikRTC:
 
 # ==================== End of class KitronikRTC ====================
 
-# Main program start:
-gc.collect  # I know what this does, but not why Kiktronics example code needed it
-clock = KitronikRTC()
-clock.setTime(0, 0, 0)
+currentSecs = 0
+previousSecs = 0
+secondsElapsed = 0
+
+def resetTimer():
+    secondsElapsed = 0
+    clock.setTime(0, 0, 0)
+    currentSecs = clock.seconds()
+    previousSecs = currentSecs
+
+gc.collect()  # I know what this does, but not why Kiktronics example code needed it
 halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)  # initialise a neopixel with 60 LEDs
-#halo_leds.clear()  # probably unnecessary
-# math.randrange(50)
+clock = KitronikRTC()
+resetTimer()
 paused = False
 
 # Note: Python ranges don't include the end value
@@ -133,14 +145,17 @@ for i in range(0, 60):
     halo_leds.show()
 
 while True:
-    halo_leds[clock.seconds()] = LED_BLACK
-    halo_leds.show()
-
     if button_a.was_pressed():
         paused = not paused
 
     if paused:
         display.show(ICON_PAUSED)
     else:
+        currentSecs = clock.seconds()
         display.show(ICON_PLAY)
-    # Write your code here :-)
+        if currentSecs > previousSecs:
+            secondsElapsed += 1
+            previousSecs = currentSecs
+            halo_leds[secondsElapsed] = LED_BLACK
+            halo_leds.show()
+
