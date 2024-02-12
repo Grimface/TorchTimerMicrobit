@@ -157,12 +157,23 @@ while True:
     if accelerometer.was_gesture("face up"):
         paused = False
 
+    if button_a.was_pressed():
+        #The torch buns out sooner! Tick the clock down by 10
+        for i in range (secondsElapsed, secondsElapsed+11):
+            if i < 60:
+                halo_leds[i] = LED_BLACK
+        halo_leds.show()
+        secondsElapsed += 10;
+        if secondsElapsed > 59:
+            secondsElapsed = 59;
+
     if paused:
         display.show(ICON_PAUSED)
     else:
         display.show(ICON_PLAY)
         if clock.seconds() > previousSecs:
-            halo_leds[secondsElapsed] = LED_BLACK
-            halo_leds.show()
-            secondsElapsed += 1
-            previousSecs = clock.seconds()
+            if secondsElapsed < 60:
+                halo_leds[secondsElapsed] = LED_BLACK
+                halo_leds.show()
+                secondsElapsed += 1
+                previousSecs = clock.seconds()
