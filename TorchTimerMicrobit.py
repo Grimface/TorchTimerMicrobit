@@ -10,6 +10,7 @@ from microbit import button_b
 from microbit import display
 from microbit import Image
 from microbit import i2c
+from microbit import accelerometer
 # from microbit import pin0 #mic input
 from microbit import pin8  # ZIP LEDs
 # from microbit import pin14 #buzzer
@@ -142,14 +143,18 @@ paused = False
 
 resetLEDs(halo_leds, LED_DIM_ORANGE)
 while True:
-    if button_a.was_pressed():
-        paused = not paused
-
-    if button_b.was_pressed():
+    if accelerometer.was_gesture("shake"):
+        # Reset the timer and LEDs, and unpause.
         previousSecs = 0
         secondsElapsed = 0
         clock.setTime(0, 0, 0)
         resetLEDs(halo_leds, LED_DIM_ORANGE)
+        paused = False
+
+    if accelerometer.was_gesture("face down"):
+        paused = True
+
+    if accelerometer.was_gesture("face up"):
         paused = False
 
     if paused:
