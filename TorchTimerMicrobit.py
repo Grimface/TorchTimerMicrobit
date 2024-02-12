@@ -6,7 +6,7 @@
 
 
 from microbit import button_a
-# from microbit import button_b
+from microbit import button_b
 from microbit import display
 from microbit import Image
 from microbit import i2c
@@ -122,35 +122,41 @@ class KitronikRTC:
 
 
 # ==================== End of class KitronikRTC ====================
-#gc.collect()  # I know what this does, but not why Kiktronics example code needed it
+gc.collect()  # I know what this does, but not why Kiktronics example code needed it.
 
+def resetLEDs(leds, colour):
+    # Set all the LEDs to show a dim orange colour to start.
+    # Note: Python ranges don't include the end value, so this will set 0-59
+    for i in range(0, 60):
+        leds[i] = colour
+        leds.show()
 
-halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)  # initialise a neopixel with 60 LEDs
+# Initialise the Halo HD, which is basically a neopixel strip with 60 LEDs,
+# plus a clock and a few other things.
+halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)
 clock = KitronikRTC()
 clock.setTime(0, 0, 0)
-currentSecs = clock.seconds()
-previousSecs = currentSecs
+previousSecs = 0
 secondsElapsed = 0
 paused = False
 
-# Set all the LEDs to show a dim orange colour to start.
-# Note: Python ranges don't include the end value, so this will set 0-59
-for i in range(0, 60):
-    halo_leds[i] = LED_DIM_ORANGE
-    halo_leds.show()
-
+resetLEDs(halo_leds, LED_DIM_ORANGE)
 while True:
     if button_a.was_pressed():
         paused = not paused
 
+    if button_b.was_pressed():
+        previousSecs = 0
+        secondsElapsed = 0
+        clock.setTime(0, 0, 0)
+        resetLEDs(halo_leds, LED_DIM_ORANGE)
+
     if paused:
         display.show(ICON_PAUSED)
     else:
-        currentSecs = clock.seconds()
         display.show(ICON_PLAY)
-        if currentSecs > previousSecs:
+        if clock.seconds() > previousSecs:
             halo_leds[secondsElapsed] = LED_BLACK
             halo_leds.show()
             secondsElapsed += 1
-            previousSecs = currentSecs
-
+            previousSecs = clock.seconds()
