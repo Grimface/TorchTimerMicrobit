@@ -150,6 +150,7 @@ while True:
         secondsElapsed = 0
         clock.setTime(0, 0, 0)
         resetLEDs(halo_leds, LED_DIM_ORANGE)
+        paused = False
 
     if paused:
         display.show(ICON_PAUSED)
