@@ -122,24 +122,19 @@ class KitronikRTC:
 
 
 # ==================== End of class KitronikRTC ====================
+#gc.collect()  # I know what this does, but not why Kiktronics example code needed it
 
-currentSecs = 0
-previousSecs = 0
-secondsElapsed = 0
 
-def resetTimer():
-    secondsElapsed = 0
-    clock.setTime(0, 0, 0)
-    currentSecs = clock.seconds()
-    previousSecs = currentSecs
-
-gc.collect()  # I know what this does, but not why Kiktronics example code needed it
 halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)  # initialise a neopixel with 60 LEDs
 clock = KitronikRTC()
-resetTimer()
+clock.setTime(0, 0, 0)
+currentSecs = clock.seconds()
+previousSecs = currentSecs
+secondsElapsed = 0
 paused = False
 
-# Note: Python ranges don't include the end value
+# Set all the LEDs to show a dim orange colour to start.
+# Note: Python ranges don't include the end value, so this will set 0-59
 for i in range(0, 60):
     halo_leds[i] = LED_DIM_ORANGE
     halo_leds.show()
@@ -154,8 +149,8 @@ while True:
         currentSecs = clock.seconds()
         display.show(ICON_PLAY)
         if currentSecs > previousSecs:
-            secondsElapsed += 1
-            previousSecs = currentSecs
             halo_leds[secondsElapsed] = LED_BLACK
             halo_leds.show()
+            secondsElapsed += 1
+            previousSecs = currentSecs
 
