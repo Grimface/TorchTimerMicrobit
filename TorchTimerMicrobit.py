@@ -4,7 +4,6 @@
 # back to zero every time we reset. Because we're expecting the minutes
 # and seconds to start at zero every time.
 
-
 from microbit import button_a
 from microbit import button_b
 from microbit import display
@@ -18,15 +17,27 @@ from microbit import pin19  # I2C
 from microbit import pin20  # I2C
 from neopixel import NeoPixel
 import gc
+from microbit import *
 
 # Some constants
 NUM_LEDS_ON_HALO = 60
-LED_DIM_GREEN = (0, 100, 0)
-LED_DIM_ORANGE = (20, 1, 0)
 LED_BLACK = (0, 0, 0)
 ICON_PLAY = Image("09000:09900:09990:09900:09000")
 ICON_PAUSED = Image("99099:99099:99099:99099:99099")
 
+#Notes: 50 is too bright, and too much red looks quite unlike a flame.
+torchImage60x1 = [(30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0),
+                  (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0),
+                  (25, 15,  0), (25, 15,  0), (25, 15,  0), (25, 15,  0), (25, 15,  0),
+                  (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0),
+                  (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0),
+                  (15,  5,  0), (15,  5,  0), (15,  5,  0), (15,  5,  0), (15,  5,  0),
+                  (15,  5,  0), (15,  5,  0), (15,  5,  0), (15,  5,  0), (15,  5,  0),
+                  (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0),
+                  (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0), (20, 10,  0),
+                  (25, 15,  0), (25, 15,  0), (25, 15,  0), (25, 15,  0), (25, 15,  0),
+                  (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0),
+                  (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0), (30, 20,  0)]
 
 class KitronikRTC:
     CHIP_ADDRESS = 0x6F
@@ -125,12 +136,13 @@ class KitronikRTC:
 # ==================== End of class KitronikRTC ====================
 gc.collect()  # I know what this does, but not why Kiktronics example code needed it.
 
-def resetLEDs(leds, colour):
+def resetLEDs():
     # Set all the LEDs to show a dim orange colour to start.
     # Note: Python ranges don't include the end value, so this will set 0-59
     for i in range(0, 60):
-        leds[i] = colour
-        leds.show()
+        halo_leds[i] = torchImage60x1[i]
+        halo_leds.show()
+
 
 # Initialise the Halo HD, which is basically a neopixel strip with 60 LEDs,
 # plus a clock and a few other things.
@@ -141,14 +153,14 @@ previousSecs = 0
 secondsElapsed = 0
 paused = False
 
-resetLEDs(halo_leds, LED_DIM_ORANGE)
+resetLEDs()
 while True:
     if accelerometer.was_gesture("shake"):
         # Reset the timer and LEDs, and unpause.
         previousSecs = 0
         secondsElapsed = 0
         clock.setTime(0, 0, 0)
-        resetLEDs(halo_leds, LED_DIM_ORANGE)
+        resetLEDs()
         paused = False
 
     if accelerometer.was_gesture("face down"):
@@ -160,12 +172,21 @@ while True:
     if button_a.was_pressed():
         #The torch buns out sooner! Tick the clock down by 10
         secondsElapsed += 10;
-        if secondsElapsed > 59:
-            secondsElapsed = 59;
+        if secondsElapsed > 60:
+            secondsElapsed = 60;
         for i in range (0, secondsElapsed):
             halo_leds[i] = LED_BLACK
         halo_leds.show()
 
+    if button_b.was_pressed():
+        secondsElapsed -= 10;
+        if secondsElapsed < 0:
+            secondsElapsed = 0;
+        clock.setTime(0, 0, 0)
+        previousSecs = 0
+        secondsElapsed = 0
+        paused = False
+        resetLEDs()
 
     if paused:
         display.show(ICON_PAUSED)
