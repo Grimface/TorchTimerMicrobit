@@ -192,9 +192,10 @@ while True:
         display.show(ICON_PAUSED)
     else:
         display.show(ICON_PLAY)
-        if clock.seconds() > previousSecs:
+        currentSeconds = clock.seconds()
+        if currentSeconds > previousSecs:
             secondsElapsed += 1
-            if secondsElapsed < 61:
-                halo_leds[secondsElapsed-1] = LED_BLACK
+            if secondsElapsed < 60:
+                halo_leds[secondsElapsed] = LED_BLACK
                 halo_leds.show()
-                previousSecs = clock.seconds()
+                previousSecs = currentSeconds
