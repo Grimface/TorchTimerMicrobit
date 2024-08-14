@@ -54,7 +54,7 @@ class KitronikRTC:
     START_RTC = 0x80
     STOP_RTC = 0x00
     ENABLE_BATTERY_BACKUP = 0x08
-    currentSeconds = 0
+    currentMinutes = 0
     currentMinutes = 0
     currentHours = 0
 
@@ -91,7 +91,7 @@ class KitronikRTC:
         writeBuf[0] = self.RTC_SECONDS_REG
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
         readBuf = i2c.read(self.CHIP_ADDRESS, 7, False)
-        self.currentSeconds = (((readBuf[0] & 0x70) >> 4) * 10) + (readBuf[0] & 0x0F)
+        self.currentMinutes = (((readBuf[0] & 0x70) >> 4) * 10) + (readBuf[0] & 0x0F)
         self.currentMinutes = (((readBuf[1] & 0x70) >> 4) * 10) + (readBuf[1] & 0x0F)
         self.currentHours = (((readBuf[2] & 0x30) >> 4) * 10) + (readBuf[2] & 0x0F)
         self.currentWeekDay = readBuf[3]
@@ -122,7 +122,7 @@ class KitronikRTC:
     # use readValue() to update the stored numbers
     def seconds(self):
         clock.readValue()
-        return self.currentSeconds
+        return self.currentMinutes
 
     def minutes(self):
         clock.readValue()
@@ -149,16 +149,16 @@ def resetLEDs():
 halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)
 clock = KitronikRTC()
 clock.setTime(0, 0, 0)
-previousSecs = 0
-secondsElapsed = 0
+previousMinutes = 0
+minutesElapsed = 0
 paused = False
 
 resetLEDs()
 while True:
     if accelerometer.was_gesture("shake"):
         # Reset the timer and LEDs, and unpause.
-        previousSecs = 0
-        secondsElapsed = 0
+        previousMinutes = 0
+        minutesElapsed = 0
         clock.setTime(0, 0, 0)
         resetLEDs()
         paused = False
@@ -171,20 +171,20 @@ while True:
 
     if button_a.was_pressed():
         #The torch buns out sooner! Tick the clock down by 10
-        secondsElapsed += 10;
-        if secondsElapsed > 60:
-            secondsElapsed = 60;
-        for i in range (0, secondsElapsed):
+        minutesElapsed += 10;
+        if minutesElapsed > 60:
+            minutesElapsed = 60;
+        for i in range (0, minutesElapsed):
             halo_leds[i] = LED_BLACK
         halo_leds.show()
 
     if button_b.was_pressed():
-        secondsElapsed -= 10;
-        if secondsElapsed < 0:
-            secondsElapsed = 0;
+        minutesElapsed -= 10;
+        if minutesElapsed < 0:
+            minutesElapsed = 0;
         clock.setTime(0, 0, 0)
-        previousSecs = 0
-        secondsElapsed = 0
+        previousMinutes = 0
+        minutesElapsed = 0
         paused = False
         resetLEDs()
 
@@ -192,10 +192,10 @@ while True:
         display.show(ICON_PAUSED)
     else:
         display.show(ICON_PLAY)
-        currentSeconds = clock.seconds()
-        if currentSeconds > previousSecs:
-            secondsElapsed += 1
-            if secondsElapsed < 60:
-                halo_leds[secondsElapsed] = LED_BLACK
+        currentMinutes = clock.seconds()
+        if currentMinutes > previousMinutes:
+            minutesElapsed += 1
+            if minutesElapsed < 60:
+                halo_leds[minutesElapsed] = LED_BLACK
                 halo_leds.show()
-                previousSecs = currentSeconds
+                previousMinutes = currentMinutes
