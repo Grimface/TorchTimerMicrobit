@@ -192,7 +192,7 @@ while True:
         display.show(ICON_PAUSED)
     else:
         display.show(ICON_PLAY)
-        currentMinutes = clock.seconds()
+        currentMinutes = clock.minutes()
         if currentMinutes > previousMinutes:
             minutesElapsed += 1
             if minutesElapsed < 60:
