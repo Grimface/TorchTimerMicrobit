@@ -134,17 +134,17 @@ class KitronikRTC:
         self.paused = False
 
     # Must account for this exceeding 59 minutes or, in the
-    # case that extraMinutes is -ve, below 0 minutes.
-    def addMinutes(self, extraMinutes):
+    # case that minuteDelta is -ve, below 0 minutes.
+    def addMinutes(self, minuteDelta):
         self.readValue()
-        newMinutes = self.minutes + extraMinutes
+        newMinutes = self.minutes + minuteDelta
         newHours = self.hours
         if newMinutes > 59:
             newMinutes = newMinutes - 60
             newHours += 1
         elif newMinutes < 0:
-            newMinutes = 60 + newMinutes  # -ve newMinutes will make this a subtraction
-            newHours -= 1
+            newMinutes = 0
+            newHours = 0
         clock.setTime(newHours, newMinutes, self.seconds)
 
     def hourHasElapsed(self):
@@ -172,20 +172,30 @@ class KitronikRTC:
 # ==================== End of class KitronikRTC ====================
 gc.collect()  # Presumably cleans up after all the writeBuf reassignments
 
-def resetLEDs():
-    # Set all the LEDs to show a dim orange colour to start.
-    # Note: Python ranges don't include the end value, so this will set 0-59
-    for i in range(0, 60):
+def lightLEDs(fromLED, toLED):
+    # some guardrails:
+    if fromLED > 59:
+        fromLED = 59
+    if toLED > 60:
+        toLED = 60
+    if fromLED < 0:
+        fromLED = 0
+    if toLED < -1:
+        toLED = -1
+    # are we counting up or down?
+    step = 1
+    if toLED < fromLED:
+        step = -1
+    # Python ranges don't include the final value (toLED)
+    for i in range(fromLED, toLED, step):
         halo_leds[i] = torchImage60x1[i]
     halo_leds.show()
 
+def resetLEDs():
+    lightLEDs(0, 60)
 
-def extinguishLEDs():
-    clock.readValue()
-    numExtinguishable = clock.minutes
-    if clock.hourHasElapsed():
-        numExtinguishable = 60
-    for i in range(0, numExtinguishable):
+def extinguishLEDs(toLED):
+    for i in range(0, toLED):
         halo_leds[i] = LED_BLACK
     halo_leds.show()
 
@@ -213,16 +223,21 @@ while True:
     if accelerometer.was_gesture("face up"):
         clock.unpause()
 
+    clock.readValue()
+
     if button_a.was_pressed():
-        # The torch buns out 10 minutes sooner.
         clock.addMinutes(10)
 
     if button_b.was_pressed():
-        # The torch burns out 10 minutes later.
+        previousMinutes = clock.minutes
         clock.addMinutes(-10)
+        clock.readValue()
+        lightLEDs(previousMinutes, clock.minutes-1)
 
-    clock.readValue()
-    extinguishLEDs()
+    numExtinguishable = clock.minutes
+    if clock.hourHasElapsed():
+        numExtinguishable = 60
+    extinguishLEDs(numExtinguishable)
 
     if clock.hourHasElapsed():
         display.show(ICON_FINISHED)
