@@ -29,6 +29,7 @@ NUM_LEDS_ON_HALO = 60
 LED_BLACK = (0, 0, 0)
 ICON_PLAY = Image("09000:09900:09990:09900:09000")
 ICON_PAUSED = Image("99099:99099:99099:99099:99099")
+ICON_FINISHED = Image("90009:09090:00900:09090:90009")
 
 # Flame temperature in degrees centigrade
 T1300 = (30, 20,  0)  # brightest yellow
@@ -44,7 +45,7 @@ torchImage60x1 = [T1300, T1300, T1300, T1300, T1300,
                   T1100, T1100, T1100, T1100, T1100,
                   T1100, T1100, T1100, T1100, T1100,
                   T1000, T1000, T1000, T1000, T0250,
-                  T0250, T1000, T1000, T1000, T1000,
+                  T0250, T0250, T1000, T1000, T1000,
                   T1100, T1100, T1100, T1100, T1100,
                   T1100, T1100, T1100, T1100, T1100,
                   T1200, T1200, T1200, T1200, T1200,
@@ -181,7 +182,10 @@ def resetLEDs():
 
 def extinguishLEDs():
     clock.readValue()
-    for i in range(0, clock.minutes):
+    numExtinguishable = clock.minutes
+    if clock.hourHasElapsed():
+        numExtinguishable = 60
+    for i in range(0, numExtinguishable):
         halo_leds[i] = LED_BLACK
     halo_leds.show()
 
@@ -221,7 +225,7 @@ while True:
     extinguishLEDs()
 
     if clock.hourHasElapsed():
-        display.show(ICON_PAUSED)  # todo: proper finished icon
+        display.show(ICON_FINISHED)
     elif clock.paused:
         display.show(ICON_PAUSED)
     else:
