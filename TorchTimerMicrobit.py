@@ -4,6 +4,7 @@
 # back to zero every time we reset. Because we're expecting the minutes
 # and seconds to start at zero every time.
 
+# from microbit import *
 from microbit import button_a
 from microbit import button_b
 from microbit import display
@@ -17,7 +18,11 @@ from microbit import pin19  # I2C
 from microbit import pin20  # I2C
 from neopixel import NeoPixel
 import gc
-from microbit import *
+
+
+global clock
+global halo_leds
+
 
 # Some constants
 NUM_LEDS_ON_HALO = 60
@@ -26,13 +31,13 @@ ICON_PLAY = Image("09000:09900:09990:09900:09000")
 ICON_PAUSED = Image("99099:99099:99099:99099:99099")
 
 # Flame temperature in degrees centigrade
-T1300 = (30, 20,  0) # brightest yellow
+T1300 = (30, 20,  0)  # brightest yellow
 T1200 = (25, 15,  0)
 T1100 = (20, 10,  0)
-T1000 = (15,  5,  0) # red-orange
-T0250 = ( 5,  5, 15) # blue/indigo
+T1000 = (15,  5,  0)  # red-orange
+T0250 = (5,  5, 15)  # blue/indigo
 
-#Notes: 50 is too bright, and too much red looks quite unlike a flame.
+# Notes: 50 is too bright, and too much red looks quite unlike a flame.
 torchImage60x1 = [T1300, T1300, T1300, T1300, T1300,
                   T1300, T1300, T1300, T1300, T1300,
                   T1200, T1200, T1200, T1200, T1200,
@@ -61,15 +66,16 @@ class KitronikRTC:
     START_RTC = 0x80
     STOP_RTC = 0x00
     ENABLE_BATTERY_BACKUP = 0x08
-    currentMinutes = 0
-    currentMinutes = 0
-    currentHours = 0
+    seconds = 0
+    minutes = 0
+    hours = 0
+    paused = False
+    readCurrentSeconds = 0
 
     def __init__(self):
         i2c.init(freq=100000, sda=pin20, scl=pin19)
         writeBuf = bytearray(2)
         readBuf = bytearray(1)
-        readCurrentSeconds = 0
         readWeekDayReg = 0
         writeBuf[0] = self.RTC_SECONDS_REG
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
@@ -98,111 +104,125 @@ class KitronikRTC:
         writeBuf[0] = self.RTC_SECONDS_REG
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
         readBuf = i2c.read(self.CHIP_ADDRESS, 7, False)
-        self.currentMinutes = (((readBuf[0] & 0x70) >> 4) * 10) + (readBuf[0] & 0x0F)
-        self.currentMinutes = (((readBuf[1] & 0x70) >> 4) * 10) + (readBuf[1] & 0x0F)
-        self.currentHours = (((readBuf[2] & 0x30) >> 4) * 10) + (readBuf[2] & 0x0F)
-        self.currentWeekDay = readBuf[3]
-        self.currentDay = (((readBuf[4] & 0x30) >> 4) * 10) + (readBuf[4] & 0x0F)
-        self.currentMonth = (((readBuf[5] & 0x10) >> 4) * 10) + (readBuf[5] & 0x0F)
-        self.currentYear = (((readBuf[6] & 0xF0) >> 4) * 10) + (readBuf[6] & 0x0F)
+        self.seconds = (((readBuf[0] & 0x70) >> 4) * 10) + (readBuf[0] & 0x0F)
+        self.minutes = (((readBuf[1] & 0x70) >> 4) * 10) + (readBuf[1] & 0x0F)
+        self.hours = (((readBuf[2] & 0x30) >> 4) * 10) + (readBuf[2] & 0x0F)
+        self.weekDay = readBuf[3]
+        self.day = (((readBuf[4] & 0x30) >> 4) * 10) + (readBuf[4] & 0x0F)
+        self.month = (((readBuf[5] & 0x10) >> 4) * 10) + (readBuf[5] & 0x0F)
+        self.year = (((readBuf[6] & 0xF0) >> 4) * 10) + (readBuf[6] & 0x0F)
 
     # This actually pokes the time values into the RTC chip.
     # It converts the decimal values to BCD for the RTC chip
-    def setTime(self, setHours, setMinutes, setSeconds):
+    def setTime(self, newHours, newMinutes, newSeconds):
         writeBuf = bytearray(2)
         writeBuf[0] = self.RTC_SECONDS_REG
         writeBuf[1] = self.STOP_RTC
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
         writeBuf[0] = self.RTC_HOURS_REG
-        writeBuf[1] = (int(setHours / 10) << 4) | int(setHours % 10)
+        writeBuf[1] = (int(newHours / 10) << 4) | int(newHours % 10)
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
         writeBuf[0] = self.RTC_MINUTES_REG
-        writeBuf[1] = (int(setMinutes / 10) << 4) | int(setMinutes % 10)
+        writeBuf[1] = (int(newMinutes / 10) << 4) | int(newMinutes % 10)
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
         writeBuf[0] = self.RTC_SECONDS_REG
         writeBuf[1] = (
-            self.START_RTC | (int(setSeconds / 10) << 4) | int(setSeconds % 10)
+            self.START_RTC | (int(newSeconds / 10) << 4) | int(newSeconds % 10)
         )
         i2c.write(self.CHIP_ADDRESS, writeBuf, False)
+        self.paused = False
 
-    # These read functions only return the last read values.
-    # use readValue() to update the stored numbers
-    def seconds(self):
-        clock.readValue()
-        return self.currentMinutes
+    # Must account for this exceeding 59 minutes or, in the
+    # case that extraMinutes is -ve, below 0 minutes.
+    def addMinutes(self, extraMinutes):
+        self.readValue()
+        newMinutes = self.minutes + extraMinutes
+        newHours = self.hours
+        if newMinutes > 59:
+            newMinutes = newMinutes - 60
+            newHours += 1
+        elif newMinutes < 0:
+            newMinutes = 60 + newMinutes  # -ve newMinutes will make this a subtraction
+            newHours -= 1
+        clock.setTime(newHours, newMinutes, self.seconds)
 
-    def minutes(self):
-        clock.readValue()
-        return self.currentMinutes
+    def hourHasElapsed(self):
+        if self.hours > 0:
+            return True
 
-    def hours(self):
-        clock.readValue()
-        return self.currentHours
+    def pause(self):
+        if self.paused:
+            return
+        writeBuf = bytearray(2)
+        writeBuf[0] = self.RTC_SECONDS_REG
+        writeBuf[1] = self.STOP_RTC
+        i2c.write(self.CHIP_ADDRESS, writeBuf, False)
+        self.paused = True
 
+    def unpause(self):
+        if not self.paused:
+            return
+        writeBuf = bytearray(2)
+        writeBuf[0] = self.RTC_SECONDS_REG
+        writeBuf[1] = self.START_RTC | self.seconds
+        i2c.write(self.CHIP_ADDRESS, writeBuf, False)
+        self.paused = False
 
 # ==================== End of class KitronikRTC ====================
-gc.collect()  # I know what this does, but not why Kiktronics example code needed it.
+gc.collect()  # Presumably cleans up after all the writeBuf reassignments
 
 def resetLEDs():
     # Set all the LEDs to show a dim orange colour to start.
     # Note: Python ranges don't include the end value, so this will set 0-59
     for i in range(0, 60):
         halo_leds[i] = torchImage60x1[i]
-        halo_leds.show()
+    halo_leds.show()
+
+
+def extinguishLEDs():
+    clock.readValue()
+    for i in range(0, clock.minutes):
+        halo_leds[i] = LED_BLACK
+    halo_leds.show()
+
+def resetTorch():
+    clock.setTime(0, 0, 0)  # This also unpauses it
+    resetLEDs()
+    gc.collect()
 
 
 # Initialise the Halo HD, which is basically a neopixel strip with 60 LEDs,
 # plus a clock and a few other things.
 halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)
 clock = KitronikRTC()
-clock.setTime(0, 0, 0)
-previousMinutes = 0
-minutesElapsed = 0
-paused = False
+resetTorch()
 
-resetLEDs()
+
 while True:
     if accelerometer.was_gesture("shake"):
         # Reset the timer and LEDs, and unpause.
-        previousMinutes = 0
-        minutesElapsed = 0
-        clock.setTime(0, 0, 0)
-        resetLEDs()
-        paused = False
+        resetTorch()
 
     if accelerometer.was_gesture("face down"):
-        paused = True
+        clock.pause()
 
     if accelerometer.was_gesture("face up"):
-        paused = False
+        clock.unpause()
 
     if button_a.was_pressed():
-        #The torch buns out sooner! Tick the clock down by 10
-        minutesElapsed += 10;
-        if minutesElapsed > 60:
-            minutesElapsed = 60;
-        for i in range (0, minutesElapsed):
-            halo_leds[i] = LED_BLACK
-        halo_leds.show()
+        # The torch buns out 10 minutes sooner.
+        clock.addMinutes(10)
 
     if button_b.was_pressed():
-        minutesElapsed -= 10;
-        if minutesElapsed < 0:
-            minutesElapsed = 0;
-        clock.setTime(0, 0, 0)
-        previousMinutes = 0
-        minutesElapsed = 0
-        paused = False
-        resetLEDs()
+        # The torch burns out 10 minutes later.
+        clock.addMinutes(-10)
 
-    if paused:
+    clock.readValue()
+    extinguishLEDs()
+
+    if clock.hourHasElapsed():
+        display.show(ICON_PAUSED)  # todo: proper finished icon
+    elif clock.paused:
         display.show(ICON_PAUSED)
     else:
         display.show(ICON_PLAY)
-        currentMinutes = clock.minutes()
-        if currentMinutes > previousMinutes:
-            minutesElapsed += 1
-            if minutesElapsed < 60:
-                halo_leds[minutesElapsed] = LED_BLACK
-                halo_leds.show()
-                previousMinutes = currentMinutes
