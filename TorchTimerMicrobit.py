@@ -4,7 +4,6 @@
 # back to zero every time we reset. Because we're expecting the minutes
 # and seconds to start at zero every time.
 
-# from microbit import *
 from microbit import button_a
 from microbit import button_b
 from microbit import display
@@ -18,39 +17,160 @@ from microbit import pin19  # I2C
 from microbit import pin20  # I2C
 from neopixel import NeoPixel
 import gc
-
+from time import sleep_ms
 
 global clock
 global halo_leds
-
+global torch_image
 
 # Some constants
 NUM_LEDS_ON_HALO = 60
-LED_BLACK = (0, 0, 0)
+
 ICON_PLAY = Image("09000:09900:09990:09900:09000")
 ICON_PAUSED = Image("99099:99099:99099:99099:99099")
 ICON_FINISHED = Image("90009:09090:00900:09090:90009")
 
-# Flame temperature in degrees centigrade
-T1300 = (30, 20,  0)  # brightest yellow
-T1200 = (25, 15,  0)
-T1100 = (20, 10,  0)
-T1000 = (15,  5,  0)  # red-orange
-T0250 = (5,  5, 15)  # blue/indigo
+BLACK = (0, 0, 0)
+BRIGHT_YELLOW = (35, 25,  0)
+YELLOW = (30, 20,  0)
+ORANGE_YELLOW = (25, 15,  0)
+ORANGE = (20, 10,  0)
+RED_ORANGE = (15,  5,  0)  # red-orange
+RED = (10,  2,  0)
 
-# Notes: 50 is too bright, and too much red looks quite unlike a flame.
-torchImage60x1 = [T1300, T1300, T1300, T1300, T1300,
-                  T1300, T1300, T1300, T1300, T1300,
-                  T1200, T1200, T1200, T1200, T1200,
-                  T1100, T1100, T1100, T1100, T1100,
-                  T1100, T1100, T1100, T1100, T1100,
-                  T1000, T1000, T1000, T1000, T0250,
-                  T0250, T0250, T1000, T1000, T1000,
-                  T1100, T1100, T1100, T1100, T1100,
-                  T1100, T1100, T1100, T1100, T1100,
-                  T1200, T1200, T1200, T1200, T1200,
-                  T1300, T1300, T1300, T1300, T1300,
-                  T1300, T1300, T1300, T1300, T1300]
+torch01 = [RED, RED, RED, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, YELLOW, YELLOW,
+           YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED, RED]
+
+torch02 = [RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE,
+           ORANGE, ORANGE, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           YELLOW, YELLOW, YELLOW, YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED, RED]
+
+torch03 = [RED, RED, RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE]
+
+torch04 = [RED_ORANGE, RED_ORANGE, RED, RED, RED, RED, RED, RED, RED, RED, RED,
+           RED, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, YELLOW,
+           YELLOW, YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE,
+           ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE]
+
+torch05 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED, RED, RED,
+           RED, RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE]
+
+torch06 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, YELLOW, YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE,
+           ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED, RED, RED_ORANGE, RED_ORANGE]
+
+torch07 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED, RED, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW, YELLOW,
+           YELLOW, YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, YELLOW,
+           YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED, RED, RED, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE]
+
+torch08 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, YELLOW, YELLOW, YELLOW,
+           YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE]
+
+torch09 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
+           YELLOW, YELLOW, YELLOW, YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE,
+           ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED, RED, RED, RED_ORANGE, RED_ORANGE]
+
+torch10 = [RED, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW,
+           YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           YELLOW, YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE,
+           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED,
+           RED, RED, RED]
+
+torch11 = [RED, RED, RED, RED_ORANGE, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
+           YELLOW, YELLOW, YELLOW, YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW, BRIGHT_YELLOW,
+           BRIGHT_YELLOW, BRIGHT_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
+           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE,
+           ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
+           RED_ORANGE, RED, RED_ORANGE, RED_ORANGE, RED, RED]
+
+torch_images = [torch01, torch02, torch03, torch04, torch05, torch06,
+                torch07, torch08, torch09, torch10, torch11]
 
 class KitronikRTC:
     CHIP_ADDRESS = 0x6F
@@ -172,36 +292,18 @@ class KitronikRTC:
 # ==================== End of class KitronikRTC ====================
 gc.collect()  # Presumably cleans up after all the writeBuf reassignments
 
-def lightLEDs(fromLED, toLED):
-    # some guardrails:
-    if fromLED > 59:
-        fromLED = 59
-    if toLED > 60:
-        toLED = 60
-    if fromLED < 0:
-        fromLED = 0
-    if toLED < -1:
-        toLED = -1
-    # are we counting up or down?
-    step = 1
-    if toLED < fromLED:
-        step = -1
-    # Python ranges don't include the final value (toLED)
-    for i in range(fromLED, toLED, step):
-        halo_leds[i] = torchImage60x1[i]
-    halo_leds.show()
-
-def resetLEDs():
-    lightLEDs(0, 60)
-
-def extinguishLEDs(toLED):
-    for i in range(0, toLED):
-        halo_leds[i] = LED_BLACK
+def set_LEDs(num_extinguished):
+    if num_extinguished > 0:
+        for i in range(0, num_extinguished):
+            halo_leds[i] = BLACK
+    if num_extinguished < 60:
+        for i in range(num_extinguished, 60):
+            halo_leds[i] = torch_image[i]
     halo_leds.show()
 
 def resetTorch():
     clock.setTime(0, 0, 0)  # This also unpauses it
-    resetLEDs()
+    set_LEDs(0)
     gc.collect()
 
 
@@ -209,6 +311,8 @@ def resetTorch():
 # plus a clock and a few other things.
 halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)
 clock = KitronikRTC()
+animation_counter = 0
+torch_image = torch_images[animation_counter]
 resetTorch()
 
 
@@ -227,17 +331,15 @@ while True:
 
     if button_a.was_pressed():
         clock.addMinutes(10)
+        clock.readValue()
 
     if button_b.was_pressed():
-        previousMinutes = clock.minutes
         clock.addMinutes(-10)
         clock.readValue()
-        lightLEDs(previousMinutes, clock.minutes-1)
 
-    numExtinguishable = clock.minutes
+    minutes_elapsed = clock.minutes
     if clock.hourHasElapsed():
-        numExtinguishable = 60
-    extinguishLEDs(numExtinguishable)
+        minutes_elapsed = 60
 
     if clock.hourHasElapsed():
         display.show(ICON_FINISHED)
@@ -245,3 +347,10 @@ while True:
         display.show(ICON_PAUSED)
     else:
         display.show(ICON_PLAY)
+
+    animation_counter += 1
+    if animation_counter >= len(torch_images):
+        animation_counter = 0
+    torch_image = torch_images[animation_counter]
+    set_LEDs(minutes_elapsed)
+    sleep_ms(100)
