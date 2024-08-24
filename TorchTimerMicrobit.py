@@ -6,6 +6,7 @@
 
 from microbit import button_a
 from microbit import button_b
+from microbit import pin_logo
 from microbit import display
 from microbit import Image
 from microbit import i2c
@@ -313,6 +314,7 @@ halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)
 clock = KitronikRTC()
 animation_counter = 0
 animation_step = 1
+animation_paused = False
 torch_image = torch_images[animation_counter]
 resetTorch()
 
@@ -329,6 +331,9 @@ while True:
         clock.unpause()
 
     clock.readValue()
+
+    if pin_logo.is_touched():
+        animation_paused = not animation_paused
 
     if button_a.was_pressed():
         clock.addMinutes(10)
@@ -349,9 +354,10 @@ while True:
     else:
         display.show(ICON_PLAY)
 
-    animation_counter += animation_step
-    if (0 == animation_counter) or ((len(torch_images) - 1) == animation_counter):
-        animation_step *= -1
-    torch_image = torch_images[animation_counter]
+    if not animation_paused:
+        animation_counter += animation_step
+        if (0 == animation_counter) or ((len(torch_images) - 1) == animation_counter):
+            animation_step *= -1
+        torch_image = torch_images[animation_counter]
     set_LEDs(minutes_elapsed)
     sleep_ms(100)
