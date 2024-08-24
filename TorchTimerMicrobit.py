@@ -312,6 +312,7 @@ def resetTorch():
 halo_leds = NeoPixel(pin8, NUM_LEDS_ON_HALO)
 clock = KitronikRTC()
 animation_counter = 0
+animation_step = 1
 torch_image = torch_images[animation_counter]
 resetTorch()
 
@@ -348,9 +349,9 @@ while True:
     else:
         display.show(ICON_PLAY)
 
-    animation_counter += 1
-    if animation_counter >= len(torch_images):
-        animation_counter = 0
+    animation_counter += animation_step
+    if (0 == animation_counter) or ((len(torch_images) - 1) == animation_counter):
+        animation_step *= -1
     torch_image = torch_images[animation_counter]
     set_LEDs(minutes_elapsed)
     sleep_ms(100)
