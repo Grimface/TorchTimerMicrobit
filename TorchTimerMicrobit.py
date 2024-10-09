@@ -1,21 +1,4 @@
-# Sets all the Halo LEDs to orange, and then darkens one each second,
-# going clockwise from the top, and displays an image in the center.
-# Note: The time calculations all rely on setting the real-time clock
-# back to zero every time we reset. Because we're expecting the minutes
-# and seconds to start at zero every time.
-
-from microbit import button_a
-from microbit import button_b
-from microbit import pin_logo
-from microbit import display
-from microbit import Image
-from microbit import i2c
-from microbit import accelerometer
-# from microbit import pin0 #mic input
-from microbit import pin8  # ZIP LEDs
-# from microbit import pin14 #buzzer
-from microbit import pin19  # I2C
-from microbit import pin20  # I2C
+from microbit import *
 from neopixel import NeoPixel
 import gc
 from time import sleep_ms
@@ -23,6 +6,7 @@ from time import sleep_ms
 global clock
 global halo_leds
 global torch_image
+global light_images
 
 # Some constants
 NUM_LEDS_ON_HALO = 60
@@ -32,143 +16,65 @@ ICON_PAUSED = Image("99099:99099:99099:99099:99099")
 ICON_FINISHED = Image("90009:09090:00900:09090:90009")
 
 BLACK = (0, 0, 0)
-YELLOW = (23, 16,  0)
-ORANGE_YELLOW = (20, 14,  0)
-ORANGE = (20, 10,  0)
-RED_ORANGE = (15,  5,  0)  # red-orange
-RED = (10,  2,  0)
 
-torch01 = [RED, RED, RED, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE, ORANGE_YELLOW, YELLOW, YELLOW, ORANGE_YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE,
-           ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED]
+S1 = (8, 8, 8)
+S2 = (10, 10, 10)
+S3 = (12, 12, 12)
+S4 = (14, 14, 14)
 
-torch02 = [RED, RED, RED, RED_ORANGE, RED, RED, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, YELLOW, YELLOW,  YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW,
-           YELLOW, ORANGE, ORANGE_YELLOW, ORANGE, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED, RED]
+T4 = (22, 14,  0)
+T3 = (20, 12,  0)
+T2 = (20, 10,  0)
+T1 = (18,  8,  0)
 
-torch03 = [RED, RED, RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, YELLOW,
-           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE,
-           ORANGE, ORANGE_YELLOW, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE]
 
-torch04 = [RED_ORANGE, RED_ORANGE, RED, RED, RED, RED, RED, RED, RED_ORANGE,
-           RED, RED, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
-           ORANGE_YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, YELLOW,
-           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE,
-           ORANGE, ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE]
+torch01 = [T3, T3, T2, T2, T1, T2, T2, T2, T3, T3,
+           T3, T3, T2, T2, T1, T2, T2, T2, T3, T3,
+           T3, T3, T2, T2, T1, T2, T2, T2, T3, T3,
+           T3, T3, T2, T2, T1, T2, T2, T2, T3, T3,
+           T3, T3, T2, T2, T1, T2, T2, T2, T3, T3,
+           T3, T3, T2, T2, T1, T2, T2, T2, T3, T3]
 
-torch05 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED, RED, RED,
-           RED, RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE]
+torch02 = [T2, T2, T2, T2, T2, T2, T2, T2, T2, T2,
+           T2, T2, T2, T2, T2, T2, T2, T2, T2, T2,
+           T2, T2, T2, T2, T2, T2, T2, T2, T2, T2,
+           T2, T2, T2, T2, T2, T2, T2, T2, T2, T2,
+           T2, T2, T2, T2, T2, T2, T2, T2, T2, T2,
+           T2, T2, T2, T2, T2, T2, T2, T2, T2, T2]
 
-torch06 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED, RED, RED, RED, RED, RED, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW,
-           ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE,
-           ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED, RED, RED_ORANGE, RED_ORANGE]
+torch03 = [T1, T2, T2, T3, T4, T3, T3, T2, T2, T1,
+           T1, T2, T2, T3, T4, T3, T3, T2, T2, T1,
+           T1, T2, T2, T3, T4, T3, T3, T2, T2, T1,
+           T1, T2, T2, T3, T4, T3, T3, T2, T2, T1,
+           T1, T2, T2, T3, T4, T3, T3, T2, T2, T1,
+           T1, T2, T2, T3, T4, T3, T3, T2, T2, T1]
 
-torch07 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED, RED, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE_YELLOW, YELLOW,
-           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           ORANGE_YELLOW, ORANGE, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED, RED, RED,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE]
+spell01 = [S1, S2, S3, S2, S1, S1, S1, S1, S1, S2,
+           S3, S2, S2, S3, S1, S1, S2, S1, S2, S3,
+           S3, S2, S3, S2, S1, S1, S2, S2, S1, S2,
+           S2, S3, S2, S1, S2, S2, S3, S2, S3, S2,
+           S1, S1, S2, S1, S2, S2, S3, S4, S3, S2,
+           S1, S2, S2, S3, S2, S1, S1, S2, S1, S1]
 
-torch08 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           YELLOW, ORANGE_YELLOW, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED, RED,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE]
+spell02 = [S1, S1, S2, S3, S2, S1, S2, S2, S1, S1,
+           S3, S2, S2, S3, S1, S1, S2, S1, S2, S2,
+           S2, S2, S3, S2, S1, S1, S2, S2, S1, S2,
+           S2, S3, S2, S1, S2, S2, S3, S2, S3, S2,
+           S2, S1, S2, S1, S2, S2, S3, S2, S3, S2,
+           S2, S2, S3, S3, S2, S1, S2, S1, S1, S2]
 
-torch09 = [RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, ORANGE,
-           ORANGE_YELLOW, YELLOW, YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE_YELLOW,
-           YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE,
-           ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED, RED, RED, RED_ORANGE, RED_ORANGE]
+spell03 = [S2, S2, S3, S2, S1, S2, S3, S4, S3, S2,
+           S2, S1, S2, S2, S2, S1, S2, S1, S2, S2,
+           S1, S2, S3, S2, S2, S1, S2, S2, S1, S2,
+           S1, S2, S1, S1, S2, S2, S3, S2, S3, S2,
+           S2, S1, S2, S1, S2, S2, S3, S4, S3, S2,
+           S1, S1, S2, S2, S1, S2, S3, S2, S2, S3]
 
-torch10 = [RED, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED_ORANGE, ORANGE, ORANGE, ORANGE, ORANGE,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW,
-           YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE, ORANGE, ORANGE, ORANGE,
-           RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE, RED,
-           RED, RED, RED]
+torch_images = [torch01, torch02, torch03]
+spell_images = [spell01, spell02, spell03]
 
-torch11 = [RED, RED, RED, RED_ORANGE, RED, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           ORANGE, ORANGE, ORANGE, ORANGE, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, YELLOW, YELLOW,
-           YELLOW, YELLOW, ORANGE_YELLOW, YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, YELLOW, ORANGE_YELLOW, ORANGE, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW,
-           ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE_YELLOW, ORANGE,
-           ORANGE, ORANGE, ORANGE, RED_ORANGE, RED_ORANGE, RED_ORANGE,
-           RED_ORANGE, RED, RED_ORANGE, RED_ORANGE, RED, RED]
+light_images = torch_images
 
-torch_images = [torch01, torch02, torch03, torch04, torch05, torch06,
-                torch07, torch08, torch09, torch10, torch11]
 
 class KitronikRTC:
     CHIP_ADDRESS = 0x6F
@@ -312,11 +218,17 @@ clock = KitronikRTC()
 animation_counter = 0
 animation_step = 1
 animation_paused = False
-torch_image = torch_images[animation_counter]
+torch_image = light_images[animation_counter]
 resetTorch()
 
 
 while True:
+    if microphone.current_event() == SoundEvent.LOUD:
+        if light_images == torch_images:
+            light_images = spell_images
+        else:
+            light_images = torch_images
+
     if accelerometer.was_gesture("shake"):
         # Reset the timer and LEDs, and unpause.
         resetTorch()
@@ -353,8 +265,8 @@ while True:
 
     if not animation_paused:
         animation_counter += animation_step
-        if (0 == animation_counter) or ((len(torch_images) - 1) == animation_counter):
+        if (0 == animation_counter) or ((len(light_images) - 1) == animation_counter):
             animation_step *= -1
-        torch_image = torch_images[animation_counter]
+        torch_image = light_images[animation_counter]
     set_LEDs(minutes_elapsed)
     sleep_ms(100)
