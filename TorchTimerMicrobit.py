@@ -194,7 +194,7 @@ class KitronikRTC:
         self.paused = False
 
 # ==================== End of class KitronikRTC ====================
-gc.collect()  # Presumably cleans up after all the writeBuf reassignments
+gc.collect()  # Cleans up after all the writeBuf reassignments
 
 def set_LEDs(num_extinguished):
     if num_extinguished > 0:
